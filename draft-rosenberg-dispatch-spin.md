@@ -1,8 +1,8 @@
 ---
 title: Simple Protocol for Inviting Numbers (SPIN)
 abbrev: SPIN
-docname: draft-rosenberg-dispatch-spin
-date: 2022-07-01
+docname: draft-rosenberg-dispatch-spin-00
+date: 2022-07-11
 
 # stand_alone: true
 
@@ -22,11 +22,27 @@ pi:    # can use array (if all yes) or hash here
   symrefs: yes
 
 author:
-      
+      -  
         ins: J. Rosenberg
         name: Jonathan Rosenberg
         org: Five9
         email: jdrosen@jdrosen.net
+      -
+        ins: C. Jennings
+        name: Cullen Jennings
+        org: Cisco
+        email: fluffy@cisco.com
+      -
+        ins: A. Cooper
+        name: Alissa Cooper
+        org: Cisco
+        email: alissa@cooperw.in
+      -
+        ins: J. Peterson
+        name: Jon Peterson
+        org: Neustar
+        email: jon.peterson@neustar.biz
+
       
 
 normative:
@@ -34,6 +50,7 @@ normative:
     RFC3261:
     RFC8224:
     RFC8225:
+    RFC9060:
     I-D.rosenberg-dispatch-cloudsip:
     I-D.ietf-mls-architecture:
 
@@ -54,9 +71,9 @@ The downside of the loss of interoperability is that entry into the market place
 
 This situation has recently drawn the attention of regulators, and was one of the motivations behind the Digital Markets Act (DMA) in the European Union. Amongst its many provisions, it requires vendors of large communications platforms to enable interoperability with third party vendors. It does not, of course, specify an actual set of protocols or technologies for enabling that interoperability. 
 
-This document seeks to fill that void, by defining a framework for such interoperability. This framework seeks to strike a balance between innovation and standardization, by identifying only those portions of the protocol stack that must be standardized in order to achieve end-to-end security for a minimum feature set between providers, and leaving everything else to APIs and protocols which each vendor can define on it's own. 
+This document seeks to fill that void, by defining a framework - the SPIN Framework - for such interoperability. This framework seeks to strike a balance between innovation and standardization, by identifying only those portions of the protocol stack that must be standardized in order to achieve end-to-end security for a minimum feature set between providers, and leaving everything else to APIs and protocols which each vendor can define on it's own. 
 
-This framework identifies the need for a new protocol to solve the identity mapping problem. Specifically, how does an originating user using one application identify a target user in a different application with which they wish to communicate, and then obtain an identifier for the target user in the target application that is utilized by that target user? Consider the following example. User Alice is a user of Facebook Messenger, and wishes to send a 1-1 chat message to her friend Bob. Bob is a user of a different application for messaging - Signal for example - but this fact is not known to Alice. Alice needs to somehow obtain a URI that can be used to send messages to the Signal application targeted at Bob. This is the identity mapping problem, and is addressed by the SPIN protocol defined here. 
+This framework identifies the need for a new protocol to solve the identity mapping problem - the SPIN Protocol. Specifically, how does an originating user using one application identify a target user in a different application with which they wish to communicate, and then obtain an identifier for the target user in the target application that is utilized by that target user? Consider the following example. User Alice is a user of Facebook Messenger, and wishes to send a 1-1 chat message to her friend Bob. Bob is a user of a different application for messaging - Signal for example - but this fact is not known to Alice. Alice needs to somehow obtain a URI that can be used to send messages to the Signal application targeted at Bob. This is the identity mapping problem, and is addressed by the SPIN protocol defined here. 
 
 
 # Implications of no Standards Action
@@ -65,9 +82,20 @@ In theory the application interoperability envisioned in the DMA could be achiev
 
 Furthermore, the usage of a standards-based solution ensures that end-to-end messaging, voice, and video can happen between providers. Without a standard, each vendor subject to the DMA will publish APIs for access to their services. These APIs have traditionally provided access to messages, voice and video that are not protected by e2e crypto. While it is possible, in theory, that each application provider could amend their APIs to provide access to e2e encrypted content, doing so without an agreed-upon standard will almost certainly lead to third parties decrypting in the cloud to avoid implementing N variations in each client, one for each provider they interop with. 
 
+# Affected Actors
+
+The solution defined by the SPIN framework requires participation from multiple actors, and thus requires coordination through standards. These actors are:
+
+* Mobile OS Vendors: Most notable Apple and Google. It requires them to implement new APIs in their operating systems, new user preference capabilities, and support for user identity through certificates.
+
+* App Developers: App developers, such as a Signal or Facebook Messenger, are required to change. They are required to utilize the APIs exposed by the mobile OSs, and also implement the voice, video and/or chat protocols specified by the SPIN Framework.
+
+* STIR/SHAKEN PA/CA: The SPIN framework suggests that it be possible for the mobile OS vendors to generate STIR certificates for the device. This requires that these vendors be supported as valid CAs for STIR. 
+
+Note that the SPIN Framework described here does not require any support or changes from the carriers themselves (Note however, the open issue discussed below where we discuss an alternative certification model where the telcos perform delegation to the mobile OS vendors to install a cert on the phone).
 
 
-# Framework {#framework}
+# SPIN Framework {#framework}
 
 
 The framework for SPIN is shown in the figure below:
@@ -75,7 +103,7 @@ The framework for SPIN is shown in the figure below:
 
 ~~~~~~~~~~~
 +---------------+               +---------------+
-|               |               |               |
+|               | Comm Protocol |               |
 |Originating Svc+---------------+Terminating Svc|
 |               |               |               |
 +-------+-------+               +-------+-------+
@@ -102,11 +130,13 @@ The role of the operating systems in this framework is to act as a trust anchor.
 
 The goal of the SPIN protocol is to allow a user of the originating app to select a service (voice, video or messaging), and select a phone number to which they communicate, and then receive a URI which corresponds to the terminating service which can be used to perform that communication. The URIs of course correspond to protocols for that form of communication. 
 
+Once the SPIN Protocol has run, the originating service now has a protocol URI for the particular media type - voice, video or chat, and can initiate it towards the terminating service. The SPIN Framework recommends specific protocols for voice, video and chat. For voice and video, the SPIN Framework suggests SIP {{RFC3261}}, with {{I-D.rosenberg-dispatch-cloudsip}}, {{RFC8224}} and the webRTC media stack. For messaging, it suggests creation of a new REST-based protocol for 1-1 messaging, including e2e encryption using STIR-based certificates, and features such as delivery and read receipts, emojis, stickers, reactions, threads, images, URLs, contacts, and so on, forming a baseline set of minimum viable 1-1 messaging. For the initial phase of SPIN, group communications would be out of scope. 
+
 Though the framework is expressed in terms that align with mobile operating systems, the same framework can apply in other cases. For example, the terminating service, app and OS can logically be a single entity. As an example, the terminating service, app and OS could be associated with a Contact Center as a Service (CCaaS) provider. In that setup, the SMS messages are delivered directly to the CCaaS provider, and there is not a mobile operating system involved to receive them. 
 
-# Overview of Operations
+# SPIN Protocol Overview 
 
-The behavior of the system is best understood through a high level sequence diagram:
+The behavior of the SPIN Protocol is best understood through a high level sequence diagram:
 
 
 ~~~~~~~~~~~
@@ -158,27 +188,36 @@ The behavior of the system is best understood through a high level sequence diag
 
 On the terminating side, the terminating user at some point installs an application which is capable of handling communications for one or more media types (voice, video or messaging). The application will register with the terminating OS, using APIs exposed in the OS, that it is capable of acting as a SPIN handler. As part of the registration, the application provides the OS with a URI for the service it provides of that media type. As discussed below, this can be a proprietary API, or can be a baseline standard protocol. In the case of voice, that baseline standard is SIP, and in particular, cloud SIP {{I-D.rosenberg-dispatch-cloudsip}}. 
 
-Later on, a user in an originating application decides to place a call to a number. The originating application does not have a user with that number as part of its own service, so it knows it needs to use SPIN to route the call. It goes to the operating system on the mobile phone, and requests it to provide a URI for voice communications to the specified phone number. The originating OS then prepares an invitation object. This is a JWT which contains several fields. THe fields include the phone number of the originating user (which must be known and verified by the mobile OS), and an HTTP URI that can be used by the terminating OS to send the results back, and the communications service that is requested. This HTTP URI will normally contain an embedded Authorization header field that contains a short-lived token, valid to send the results back. It then signs the JWT and sends an SMS (more likely, an MMS given the size of the signed object), to the target user's phone number. The terminating OS receives the SMS/MMS, and notices that it contains an invitation object, and thus should not be rendered to the user. Should the terminating user and its OS not support this protocol, it will end up rendering the MMS. The MMS includes some plain text, which can be rendered to the user, indicating that the caller wishes to speak with them, so that the human user can take some action (like a return voice call over the PSTN). 
+Later on, a user in an originating application decides to place a call to a number. The originating application does not have a user with that number as part of its own service, so it knows it needs to use SPIN to route the call. It goes to the operating system on the mobile phone, and requests it to provide a URI for voice communications to the specified phone number. The originating OS then prepares an SPINvitation object. This is a JWT which contains several fields. THe fields include the phone number of the originating user (which must be known and verified by the mobile OS), and an HTTP URI that can be used by the terminating OS to send the results back, and the communications service that is requested. This HTTP URI will normally contain an embedded Authorization header field that contains a short-lived token, valid to send the results back. It then signs the JWT and sends an SMS (more likely, an MMS given the size of the signed object), to the target user's phone number. The terminating OS receives the SMS/MMS, and notices that it contains an SPINvitation object, and thus should not be rendered to the user. Should the terminating user and its OS not support this protocol, it will end up rendering the MMS. The MMS includes some plain text, which can be rendered to the user, indicating that the caller wishes to speak with them, so that the human user can take some action (like a return voice call over the PSTN). 
 
 Assuming the terminating OS supports this protocol, the MMS is absorbed and decoded. THe signature is verified and then the communications service is obtained. In this example use case, it is for a voice call. The terminating OS has an application that has registered itself as a handler for voice. Note that, the terminating user might have multiple applications on their OS which can act as handlers for voice. In such a case, the mobile OS would offer the user a configuration setting to choose one as a default. 
 
 The app had previously registered itself as a handler and provided a SIP URI for the receipt of calls, something like sip:{number}@provider.com. This URI is sent back to the originating OS. Rather than sending this back via SMS/MMS, IP communications are used. The invitation object contained an HTTP URI which can be used by the terminating OS to send the SIP URI. The SPIN protocol defines the exact syntax and semantics of this HTTP POST operation. This is received by the originating OS, which then informs the app that it was able to locate the user. The originating OS provides the communications URI (in this case, a SIP URI for voice calls). 
 
-Next - the originating app places a SIP call. Because we are now dealing with inter-domain and inter-provider calls, secure caller ID is required. SPIN requires that STIR passports {{RFC8225}} are included, sent using {{RFC8224}}. The originating OS is required to obtain a passport that is valid for the originating user. The means by which a mobile OS can generate passports it outside the scope of this specification. The originating app makes an API call into the OS to obtain the passport, which is then returned to the app. The app uses its own app-specific protocols to communicate with its servers, and will send the passport and the terminating user's phone number to its service. Its service will then send a SIP INVITE to the target number, including the passport in the SIP Identity header field. From there, the terminating service can alert its app using the mobile OS push techniques, and a call has been placed.
+Next - the originating app places a SIP call. Because we are now dealing with inter-domain and inter-provider calls, secure caller ID is required. SPIN requires that STIR passports {{RFC8225}} are included, sent using {{RFC8224}}. The originating OS is required to obtain a passport that is valid for the originating user. In this framework, this is done by virtue of the mobile OS having a certificate by which it can perform the signing operation directly.
+
+There are two ways in which the originating OS can obtain such a certificate. In one approach, the mobile OS would perform SMS verification (again, invisibly, by absorbing the SMS it sends to itself), and add an additional check of comparing it agaisnt the mobile numnber the user claimed they owned during provisioning time of the device. The mobile OS vendor would be a valid CA, and then generte a certificate valid for that individual phone number. In an alternative model, the telco uses certificate delegation {{RFC9060}}, and generates a certificate that is handed to the phone during device provisioning. The latter approach is more secure in some ways (as it would no longer depend on SMS forward routability for authentication of a user), but is much harder to deploy. 
+
+The originating app makes an API call into the OS to obtain the passport, which is then returned to the app. The app uses its own app-specific protocols to communicate with its servers, and will send the passport and the terminating user's phone number to its service. Its service will then send a SIP INVITE to the target number, including the passport in the SIP Identity header field. From there, the terminating service can alert its app using the mobile OS push techniques, and a call has been placed.
 
 The SPIN framework therefore consists of the following:
 
-1. A standardized syntax for an invitation object that can be sent via MMS
-2. A standardized HTTP-based protocol for providing URIs for communications
+1. A standardized syntax for the SPINvitation object that can be sent via MMS
+2. A standardized HTTP-based protocol for providing URIs for communications - the actual SPIN on the wire protocol
 3. Recommendations for mobile OS vendors on APIs they should provide to enable SPIN, without actually specifying any details of what those APIs look like
-4. Requirements for communications protocols needed for voice, video and messaging between app providers
+4. Specifications for communications protocols needed for voice, video and messaging between app providers
 
 
-# Invitation Object Syntax
+# SPINvitation Object Syntax
 
-To be filled in.
+This will be a JWT that contains:
 
-# Protocol for Providing URIs
+* The desired media type, one of an enumerated set
+* An HTTP URI for a callback
+
+Details TBD.
+
+# SPIN Protocol for Providing URIs
 
 To be filled in
 
@@ -186,19 +225,23 @@ To be filled in
 
 To be filled in
 
-# Requirements for Communications Protocols
+# Specifications of Communications Protocols
 
 There are several ways in which the communications protocols could be specified. On one extreme, the standard could leave this entirely up to the terminating provider to define its protocol or API and document it publically. It would then be the responsibility of the originating service to implement each of these APIs for every terminating provider it wishes to speak to. On the other extreme, we can fully specify a protocol - most likely with reference to existing standards. 
 
 SPIN tries to take a middle ground. It allows terminating providers to choose whether their interface is proprietary, or, whether it follows a minimum baseline protocol specified here. 
 
-Because the communications are between providers that may not have previously had an established bilateral relationship, we want the communications to be possible without any kind of manual configuration. For this reason, SPIN specifies that the default voice and video communications protocol is cloud SIP {{I-D.rosenberg-dispatch-cloudsip}}, and it utilizes the media protocols standardized by webRTC. The usage of cloud SIP allows scalable, reliable, inter-provider SIP over the Internet, and the usage of the webRTC media stack provides a well-defined baseline media stack that is already widely implemented. The SIP messaging MUST utilize {{RFC8224}} to ensure secure user identity. Media between the originating and terminating service will be DTLS-SRTP by virtue of using webRTC, and e2e media encryption is supported and bootstrapped using a certificate bound to the user's phone numbers. 
+## Voice and Video
+
+Because the communications are between providers that may not have previously had an established bilateral relationship, we want the communications to be possible without any kind of manual configuration. For this reason, SPIN specifies that the default voice and video communications protocol is SIP {{RFC3261}}, along with it's extension for cloud SIP {{I-D.rosenberg-dispatch-cloudsip}}, and it utilizes the media protocols standardized by webRTC. The usage of cloud SIP allows scalable, reliable, inter-provider SIP over the Internet, and the usage of the webRTC media stack provides a well-defined baseline media stack that is already widely implemented. The SIP messaging MUST utilize {{RFC8224}} to ensure secure user identity. Media between the originating and terminating service will be DTLS-SRTP by virtue of using webRTC, and e2e media encryption is supported and bootstrapped using a certificate bound to the user's phone numbers. The mobile OS would hold the STIR certificate, and allow the application to request a signature over the keying material for driving DTLS-SRTP. 
 
 Details to be filled out. 
 
-For messaging, SPIN will mandate MLS {{I-D.ietf-mls-architecture}}. Work is needed to determine how to handle authentication and MLS federation. This will be accompanied by a lightweight protocol for encapsulating the MLS messages, as well as application functions for sending actual messages, message contents, delivery and read notifications, and so on.
+## Messaging
 
-Obviously a LOT of details to be added.
+For messaging, 1-1 messaging will be supported in the initial specification. All messages will be e2e encrypted, using the STIR certificate as well. A specification will be produced that defines a REST-based protocol for basic 1-1 messaging features, including read receipts, delivery notifications, typing indicators, images, videos, contact cards, and so on. A baseline set of capabilities would be provided, along with an extensibility framework for future content that would allow users to pop out to a browser in cases where some new content is added, that is not yet supported.
+
+Details TBD.
 
 # Security Considerations
 
