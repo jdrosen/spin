@@ -1,0 +1,18 @@
+object orig_app orig_os orig_svc sms term_os term_app term_svc
+
+term_app->term_os: register
+
+orig_app->orig_os: call {number}
+orig_os->sms: inv
+sms->term_os: inv
+
+note right of term_os: verify sig
+note right of term_os: verify hndlr
+
+term_os->orig_os: send URI
+orig_os->orig_app: URI
+
+orig_app->orig_os: req passport
+orig_os->orig_app: passport
+orig_app->orig_svc: call
+orig_svc->term_svc: INVITE 
